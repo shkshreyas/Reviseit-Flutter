@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "980844649772",
+    "project_id": "reviseitai-f0c43",
+    "storage_bucket": "reviseitai-f0c43.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:980844649772:android:488ebc253864be60b2a089",
+        "android_client_info": {
+          "package_name": "com.example.reviseitai"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDwX0wWadb9qje2qdiRF-0_mfxRnNTPChk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
