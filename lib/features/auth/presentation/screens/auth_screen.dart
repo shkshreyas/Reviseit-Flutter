@@ -135,7 +135,7 @@ class _AuthScreenState extends State<AuthScreen>
                   // Auth Container
                   GlassContainer(
                         width: double.infinity,
-                        height: 400,
+                        height: 403,
                         padding: const EdgeInsets.all(24),
                         child: Column(
                           children: [

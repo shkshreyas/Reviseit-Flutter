@@ -5,55 +5,92 @@ import 'package:reviseitai/core/constants/app_constants.dart';
 class GeminiService {
   final String apiKey;
   final String apiEndpoint;
-  
+
   GeminiService({
     this.apiKey = AppConstants.geminiApiKey,
     this.apiEndpoint = AppConstants.geminiApiEndpoint,
   });
-  
+
   Future<Map<String, dynamic>> generateContent(String prompt) async {
     try {
       final response = await http.post(
         Uri.parse('$apiEndpoint?key=$apiKey'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'contents': [{
-            'parts': [{
-              'text': prompt
-            }]
-          }]
+          'contents': [
+            {
+              'role': 'user',
+              'parts': [
+                {'text': prompt},
+              ],
+            },
+          ],
+          'generationConfig': {
+            'temperature': 0.7,
+            'topK': 40,
+            'topP': 0.95,
+            'maxOutputTokens': 1024,
+          },
+          'safetySettings': [
+            {
+              'category': 'HARM_CATEGORY_HARASSMENT',
+              'threshold': 'BLOCK_MEDIUM_AND_ABOVE',
+            },
+            {
+              'category': 'HARM_CATEGORY_HATE_SPEECH',
+              'threshold': 'BLOCK_MEDIUM_AND_ABOVE',
+            },
+            {
+              'category': 'HARM_CATEGORY_SEXUALLY_EXPLICIT',
+              'threshold': 'BLOCK_MEDIUM_AND_ABOVE',
+            },
+            {
+              'category': 'HARM_CATEGORY_DANGEROUS_CONTENT',
+              'threshold': 'BLOCK_MEDIUM_AND_ABOVE',
+            },
+          ],
         }),
       );
-      
+
       if (response.statusCode == 200) {
-        return jsonDecode(response.body);
+        final responseData = jsonDecode(response.body);
+        if (responseData['error'] != null) {
+          throw Exception('API Error: ${responseData['error']['message']}');
+        }
+        return responseData;
       } else {
-        throw Exception('Failed to generate content: ${response.statusCode}');
+        final errorData = jsonDecode(response.body);
+        throw Exception(
+          'Failed to generate content: ${errorData['error']['message'] ?? response.statusCode}',
+        );
       }
     } catch (e) {
+      if (e is FormatException) {
+        throw Exception('Invalid response format from API');
+      }
       throw Exception('API request failed: $e');
     }
   }
-  
+
   Future<String> generateSummary(String text) async {
     final prompt = 'Summarize the following text in a concise way: $text';
     final response = await generateContent(prompt);
-    return _extractTextFromResponse(response);
+    return extractTextFromResponse(response);
   }
-  
+
   Future<List<Map<String, dynamic>>> generateFlashcards(String text) async {
-    final prompt = 'Create a set of 5-10 flashcards with questions and answers based on this text: $text';
+    final prompt =
+        'Create a set of 5-10 flashcards with questions and answers based on this text: $text';
     final response = await generateContent(prompt);
-    final content = _extractTextFromResponse(response);
-    
+    final content = extractTextFromResponse(response);
+
     // Parse the response into flashcards
-    // This is a simplified implementation
     final List<Map<String, dynamic>> flashcards = [];
     final lines = content.split('\n');
-    
+
     String currentQuestion = '';
     String currentAnswer = '';
-    
+
     for (final line in lines) {
       if (line.startsWith('Q:')) {
         if (currentQuestion.isNotEmpty && currentAnswer.isNotEmpty) {
@@ -68,23 +105,20 @@ class GeminiService {
         currentAnswer = line.substring(2).trim();
       }
     }
-    
+
     if (currentQuestion.isNotEmpty && currentAnswer.isNotEmpty) {
-      flashcards.add({
-        'question': currentQuestion,
-        'answer': currentAnswer,
-      });
+      flashcards.add({'question': currentQuestion, 'answer': currentAnswer});
     }
-    
+
     return flashcards;
   }
-  
+
   Future<Map<String, dynamic>> generateMindMap(String text) async {
-    final prompt = 'Create a mind map in JSON format with nodes and connections based on this text: $text. The JSON should have a "root" node and "children" nodes with "connections" between them.';
+    final prompt =
+        'Create a mind map in JSON format with nodes and connections based on this text: $text. The JSON should have a "root" node and "children" nodes with "connections" between them.';
     final response = await generateContent(prompt);
-    final content = _extractTextFromResponse(response);
-    
-    // Extract JSON from the response
+    final content = extractTextFromResponse(response);
+
     try {
       // Find JSON in the response
       final jsonStart = content.indexOf('{');
@@ -99,10 +133,21 @@ class GeminiService {
       throw Exception('Failed to parse mind map JSON: $e');
     }
   }
-  
-  String _extractTextFromResponse(Map<String, dynamic> response) {
+
+  String extractTextFromResponse(Map<String, dynamic> response) {
     try {
-      return response['candidates'][0]['content']['parts'][0]['text'];
+      if (response['candidates'] == null || response['candidates'].isEmpty) {
+        throw Exception('No response from the model');
+      }
+
+      final candidate = response['candidates'][0];
+      if (candidate['content'] == null ||
+          candidate['content']['parts'] == null ||
+          candidate['content']['parts'].isEmpty) {
+        throw Exception('Invalid response format');
+      }
+
+      return candidate['content']['parts'][0]['text'];
     } catch (e) {
       throw Exception('Failed to extract text from response: $e');
     }
